@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+
+{% block title %}数据导入 - Sentix{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8 offset-md-2">
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <strong>导入评论数据</strong>
+            </div>
+            <div class="card-body">
+                <p class="text-muted mb-4">
+                    支持上传 CSV、JSON、Excel 格式的评论数据文件。数据需包含评论内容(content)列。
+                </p>
+
+                <form method="POST" enctype="multipart/form-data">
+                    <div class="mb-4">
+                        <label class="form-label">选择文件</label>
+                        <input type="file" class="form-control" name="file" accept=".csv,.json,.xlsx">
+                        <small class="text-muted">支持格式: CSV, JSON, Excel (.xlsx)</small>
+                    </div>
+
+                    <div class="mb-4">
+                        <h6>数据格式要求</h6>
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>列名</th>
+                                    <th>是否必需</th>
+                                    <th>说明</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <tr>
+                                    <td>content / 评论内容</td>
+                                    <td><span class="badge bg-danger">必需</span></td>
+                                    <td>评论文本内容</td>
+                                </tr>
+                                <tr>
+                                    <td>product_id / 商品ID</td>
+                                    <td><span class="badge bg-secondary">可选</span></td>
+                                    <td>商品标识符</td>
+                                </tr>
+                                <tr>
+                                    <td>product_name / 商品名称</td>
+                                    <td><span class="badge bg-secondary">可选</span></td>
+                                    <td>商品名称</td>
+                                </tr>
+                                <tr>
+                                    <td>rating / 评分</td>
+                                    <td><span class="badge bg-secondary">可选</span></td>
+                                    <td>用户评分(1-5)</td>
+                                </tr>
+                                <tr>
+                                    <td>comment_time / 评论时间</td>
+                                    <td><span class="badge bg-secondary">可选</span></td>
+                                    <td>评论发布时间</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div class="d-grid">
+                        <button type="submit" class="btn btn-primary btn-lg">上传并导入</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="card shadow-sm mt-4">
+            <div class="card-header">
+                <strong>示例数据格式</strong>
+            </div>
+            <div class="card-body">
+                <pre class="bg-light p-3 rounded">
+product_id,product_name,user_id,content,rating,comment_time
+P001,华为手机,user_001,这个商品非常好，质量很棒！,5,2023-01-15
+P002,小米电视,user_002,东西收到了，包装很好。,4,2023-02-20
+P003,联想笔记本,user_003,质量太差了，和描述不符。,1,2023-03-10
+                </pre>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

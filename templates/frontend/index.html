@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+
+{% block title %}首页 - Sentix{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-md-8">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h4 class="card-title">欢迎使用 Sentix 情感分析系统</h4>
+                <p class="text-muted">商品评论智能分析平台，帮助您快速洞察用户情感倾向</p>
+
+                <hr>
+
+                <div class="row mt-4">
+                    <div class="col-md-4">
+                        <div class="text-center p-3 bg-light rounded">
+                            <h3 class="text-primary">{{ total_comments }}</h3>
+                            <small class="text-muted">总评论数</small>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="text-center p-3 bg-light rounded">
+                            <h3 class="text-success">{{ analyzed_comments }}</h3>
+                            <small class="text-muted">已分析</small>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="text-center p-3 bg-light rounded">
+                            <h3 class="text-info">{{ recent_logs|length }}</h3>
+                            <small class="text-muted">我的分析次数</small>
+                        </div>
+                    </div>
+                </div>
+
+                <hr class="my-4">
+
+                <h5>快速开始</h5>
+                <div class="row mt-3">
+                    <div class="col-md-3 mb-3">
+                        <a href="{{ url_for('import_data') }}" class="btn btn-outline-primary w-100">
+                            <div class="fs-4 mb-2">1</div>
+                            导入数据
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <a href="{{ url_for('preview') }}" class="btn btn-outline-success w-100">
+                            <div class="fs-4 mb-2">2</div>
+                            数据预览
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <a href="{{ url_for('analysis') }}" class="btn btn-outline-info w-100">
+                            <div class="fs-4 mb-2">3</div>
+                            情感分析
+                        </a>
+                    </div>
+                    <div class="col-md-3 mb-3">
+                        <a href="{{ url_for('visualization') }}" class="btn btn-outline-warning w-100">
+                            <div class="fs-4 mb-2">4</div>
+                            查看结果
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-4">
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <strong>最近分析记录</strong>
+            </div>
+            <div class="card-body">
+                {% if recent_logs %}
+                <ul class="list-group list-group-flush">
+                    {% for log in recent_logs %}
+                    <li class="list-group-item">
+                        <small class="text-muted">{{ log.analysis_time.strftime('%Y-%m-%d %H:%M') }}</small>
+                        <br>
+                        <span>分析 {{ log.total_comments }} 条评论</span>
+                        <span class="badge bg-success ms-2">{{ log.positive_count }} 积极</span>
+                        <span class="badge bg-danger ms-2">{{ log.negative_count }} 消极</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="text-muted text-center">暂无分析记录</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

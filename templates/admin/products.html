@@ -1,0 +1,123 @@
+{% extends "admin/base.html" %}
+
+{% block title %}商品管理 - Sentix管理后台{% endblock %}
+{% block page_header %}商品管理{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">
+            <i class="fas fa-box"></i> 商品列表
+            <span class="text-muted ml-2">共 {{ products.total }} 个商品</span>
+        </h3>
+    </div>
+    <div class="card-body table-responsive p-0">
+        <table class="table table-hover text-nowrap">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>商品ID</th>
+                    <th>商品名称</th>
+                    <th>类别</th>
+                    <th>评论数</th>
+                    <th>创建时间</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for product in products.items %}
+                <tr>
+                    <td>{{ product.id }}</td>
+                    <td>{{ product.product_id }}</td>
+                    <td><strong>{{ product.product_name }}</strong></td>
+                    <td>{{ product.category or '-' }}</td>
+                    <td>{{ product.comments.count() }}</td>
+                    <td>{{ product.create_time.strftime('%Y-%m-%d') }}</td>
+                    <td>
+                        <button type="button" class="btn btn-sm btn-outline-primary"
+                                onclick="showEditModal({{ product.id }}, '{{ product.product_name }}', '{{ product.category or '' }}')">
+                            编辑
+                        </button>
+                        <form method="POST" class="d-inline" onsubmit="return confirm('确认删除此商品及其所有评论？')">
+                            <input type="hidden" name="product_id" value="{{ product.id }}">
+                            <input type="hidden" name="action" value="delete">
+                            <button type="submit" class="btn btn-sm btn-outline-danger">
+                                删除
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 分页 -->
+    {% if products.pages > 1 %}
+    <div class="card-footer clearfix">
+        <ul class="pagination pagination-sm m-0 float-right">
+            {% if products.has_prev %}
+            <li class="page-item">
+                <a class="page-link" href="{{ url_for('admin_products', page=products.prev_num) }}">&laquo;</a>
+            </li>
+            {% endif %}
+            {% for page in products.iter_pages() %}
+                {% if page %}
+                    {% if page == products.page %}
+                    <li class="page-item active"><span class="page-link">{{ page }}</span></li>
+                    {% else %}
+                    <li class="page-item"><a class="page-link" href="{{ url_for('admin_products', page=page) }}">{{ page }}</a></li>
+                    {% endif %}
+                {% endif %}
+            {% endfor %}
+            {% if products.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="{{ url_for('admin_products', page=products.next_num) }}">&raquo;</a>
+            </li>
+            {% endif %}
+        </ul>
+    </div>
+    {% endif %}
+</div>
+
+<!-- 编辑商品模态框 -->
+<div class="modal fade" id="editModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">编辑商品</h5>
+                <button type="button" class="close" data-dismiss="modal">
+                    <span>&times;</span>
+                </button>
+            </div>
+            <form method="POST">
+                <input type="hidden" name="action" value="update">
+                <input type="hidden" name="product_id" id="editProductId">
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label>商品名称</label>
+                        <input type="text" class="form-control" name="product_name" id="editProductName" required>
+                    </div>
+                    <div class="form-group">
+                        <label>商品类别</label>
+                        <input type="text" class="form-control" name="category" id="editProductCategory">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-dismiss="modal">取消</button>
+                    <button type="submit" class="btn btn-primary">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function showEditModal(id, name, category) {
+    document.getElementById('editProductId').value = id;
+    document.getElementById('editProductName').value = name;
+    document.getElementById('editProductCategory').value = category;
+    $('#editModal').modal('show');
+}
+</script>
+{% endblock %}

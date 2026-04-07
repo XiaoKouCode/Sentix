@@ -1,0 +1,122 @@
+{% extends "admin/base.html" %}
+
+{% block title %}评论管理 - Sentix管理后台{% endblock %}
+{% block page_header %}评论管理{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-header">
+        <h3 class="card-title">
+            <i class="fas fa-comments"></i> 评论列表
+            <span class="text-muted ml-2">共 {{ comments.total }} 条评论</span>
+        </h3>
+        <div class="card-tools">
+            <form method="GET" class="d-inline">
+                <select name="sentiment" class="form-control form-control-sm" onchange="this.form.submit()">
+                    <option value="">全部情感</option>
+                    <option value="positive" {% if request.args.get('sentiment') == 'positive' %}selected{% endif %}>积极</option>
+                    <option value="negative" {% if request.args.get('sentiment') == 'negative' %}selected{% endif %}>消极</option>
+                    <option value="neutral" {% if request.args.get('sentiment') == 'neutral' %}selected{% endif %}>中性</option>
+                </select>
+            </form>
+        </div>
+    </div>
+    <div class="card-body table-responsive p-0">
+        <table class="table table-hover text-nowrap">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>商品</th>
+                    <th>用户ID</th>
+                    <th>评论内容</th>
+                    <th>评分</th>
+                    <th>时间</th>
+                    <th>情感</th>
+                    <th>得分</th>
+                    <th>操作</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for comment in comments.items %}
+                <tr>
+                    <td>{{ comment.id }}</td>
+                    <td>
+                        {% if comment.product %}
+                        {{ comment.product.product_name[:15] }}...
+                        {% else %}
+                        {{ comment.product_id }}
+                        {% endif %}
+                    </td>
+                    <td>{{ comment.user_id or '-' }}</td>
+                    <td>
+                        <span title="{{ comment.content }}">
+                        {{ comment.content[:40] }}{% if comment.content|length > 40 %}...{% endif %}
+                        </span>
+                    </td>
+                    <td>
+                        {% if comment.rating %}
+                        <span class="badge badge-warning">{{ comment.rating }}星</span>
+                        {% else %}
+                        -
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if comment.comment_time %}
+                        {{ comment.comment_time.strftime('%Y-%m-%d') }}
+                        {% else %}
+                        -
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if comment.sentiment_label == 'positive' %}
+                        <span class="badge badge-success">积极</span>
+                        {% elif comment.sentiment_label == 'negative' %}
+                        <span class="badge badge-danger">消极</span>
+                        {% elif comment.sentiment_label == 'neutral' %}
+                        <span class="badge badge-secondary">中性</span>
+                        {% else %}
+                        <span class="badge badge-light">未分析</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ comment.sentiment_score or '-' }}</td>
+                    <td>
+                        <form method="POST" action="{{ url_for('admin_delete_comment', id=comment.id) }}" class="d-inline">
+                            <button type="submit" class="btn btn-sm btn-outline-danger" onclick="return confirm('确认删除此评论？')">
+                                删除
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- 分页 -->
+    {% if comments.pages > 1 %}
+    <div class="card-footer clearfix">
+        <ul class="pagination pagination-sm m-0 float-right">
+            {% if comments.has_prev %}
+            <li class="page-item">
+                <a class="page-link" href="{{ url_for('admin_comments', page=comments.prev_num) }}">&laquo;</a>
+            </li>
+            {% endif %}
+            {% for page in comments.iter_pages() %}
+                {% if page %}
+                    {% if page == comments.page %}
+                    <li class="page-item active"><span class="page-link">{{ page }}</span></li>
+                    {% else %}
+                    <li class="page-item"><a class="page-link" href="{{ url_for('admin_comments', page=page, sentiment=request.args.get('sentiment')) }}">{{ page }}</a></li>
+                    {% endif %}
+                {% endif %}
+            {% endfor %}
+            {% if comments.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="{{ url_for('admin_comments', page=comments.next_num, sentiment=request.args.get('sentiment')) }}">&raquo;</a>
+            </li>
+            {% endif %}
+        </ul>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

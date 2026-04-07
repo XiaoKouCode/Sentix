@@ -1,0 +1,258 @@
+{% extends "base.html" %}
+
+{% block title %}可视化分析 - Sentix{% endblock %}
+
+{% block extra_css %}
+<style>
+.chart-container {
+    height: 400px;
+    padding: 20px;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <strong>分析结果概览</strong>
+                {% if log %}
+                <span class="text-muted ms-3">分析时间: {{ log.analysis_time.strftime('%Y-%m-%d %H:%M') }}</span>
+                {% endif %}
+            </div>
+            <div class="card-body">
+                {% if log %}
+                <div class="row text-center">
+                    <div class="col-md-3">
+                        <h4 class="text-primary">{{ log.total_comments }}</h4>
+                        <small class="text-muted">总评论数</small>
+                    </div>
+                    <div class="col-md-3">
+                        <h4 class="text-success">{{ log.positive_count }}</h4>
+                        <small class="text-muted">积极评论</small>
+                    </div>
+                    <div class="col-md-3">
+                        <h4 class="text-danger">{{ log.negative_count }}</h4>
+                        <small class="text-muted">消极评论</small>
+                    </div>
+                    <div class="col-md-3">
+                        <h4 class="text-secondary">{{ log.neutral_count }}</h4>
+                        <small class="text-muted">中性评论</small>
+                    </div>
+                </div>
+                {% else %}
+                <p class="text-muted text-center">请先进行情感分析</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <strong>情感分布图</strong>
+            </div>
+            <div class="card-body">
+                <div id="sentimentPieChart" class="chart-container"></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <strong>情感柱状图</strong>
+            </div>
+            <div class="card-body">
+                <div id="sentimentBarChart" class="chart-container"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <strong>关键词分析</strong>
+            </div>
+            <div class="card-body">
+                <div id="keywordChart" class="chart-container"></div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <strong>词云图</strong>
+            </div>
+            <div class="card-body text-center">
+                <img src="{{ url_for('generate_wordcloud') }}" class="img-fluid" alt="词云图">
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="row mt-4">
+    <div class="col-md-12">
+        <div class="card shadow-sm">
+            <div class="card-header">
+                <strong>商品情感对比</strong>
+            </div>
+            <div class="card-body">
+                <div id="productCompareChart" class="chart-container" style="height: 300px;"></div>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 情感分布饼图
+var sentimentPieChart = echarts.init(document.getElementById('sentimentPieChart'));
+sentimentPieChart.setOption({
+    title: {
+        text: '情感分布',
+        left: 'center'
+    },
+    tooltip: {
+        trigger: 'item',
+        formatter: '{b}: {c} ({d}%)'
+    },
+    legend: {
+        orient: 'vertical',
+        left: 'left',
+        data: ['积极', '消极', '中性']
+    },
+    series: [{
+        name: '情感分布',
+        type: 'pie',
+        radius: '60%',
+        data: [
+            {value: {{ sentiment_data.positive }}, name: '积极', itemStyle: {color: '#28a745'}},
+            {value: {{ sentiment_data.negative }}, name: '消极', itemStyle: {color: '#dc3545'}},
+            {value: {{ sentiment_data.neutral }}, name: '中性', itemStyle: {color: '#ffc107'}}
+        ]
+    }]
+});
+
+// 情感柱状图
+var sentimentBarChart = echarts.init(document.getElementById('sentimentBarChart'));
+sentimentBarChart.setOption({
+    title: {
+        text: '情感数量统计',
+        left: 'center'
+    },
+    tooltip: {
+        trigger: 'axis'
+    },
+    xAxis: {
+        type: 'category',
+        data: ['积极', '消极', '中性']
+    },
+    yAxis: {
+        type: 'value'
+    },
+    series: [{
+        data: [
+            {value: {{ sentiment_data.positive }}, itemStyle: {color: '#28a745'}},
+            {value: {{ sentiment_data.negative }}, itemStyle: {color: '#dc3545'}},
+            {value: {{ sentiment_data.neutral }}, itemStyle: {color: '#ffc107'}}
+        ],
+        type: 'bar'
+    }]
+});
+
+// 关键词图
+var keywordChart = echarts.init(document.getElementById('keywordChart'));
+var keywords = {{ keywords|tojson }};
+keywordChart.setOption({
+    title: {
+        text: '高频关键词',
+        left: 'center'
+    },
+    tooltip: {},
+    xAxis: {
+        type: 'category',
+        data: keywords.map(function(k) { return k[0]; }),
+        axisLabel: {
+            rotate: 45
+        }
+    },
+    yAxis: {
+        type: 'value'
+    },
+    series: [{
+        data: keywords.map(function(k) { return k[1]; }),
+        type: 'bar',
+        itemStyle: {
+            color: '#17a2b8'
+        }
+    }],
+    grid: {
+        left: '10%',
+        right: '10%',
+        bottom: '20%'
+    }
+});
+
+// 商品对比图
+var productCompareChart = echarts.init(document.getElementById('productCompareChart'));
+var productData = {{ product_sentiment|tojson }};
+productCompareChart.setOption({
+    title: {
+        text: '各商品情感分布',
+        left: 'center'
+    },
+    tooltip: {
+        trigger: 'axis',
+        axisPointer: {
+            type: 'shadow'
+        }
+    },
+    legend: {
+        data: ['积极', '消极', '中性'],
+        top: 30
+    },
+    xAxis: {
+        type: 'category',
+        data: productData.map(function(p) { return p.name || '未知商品'; })
+    },
+    yAxis: {
+        type: 'value'
+    },
+    series: [
+        {
+            name: '积极',
+            type: 'bar',
+            data: productData.map(function(p) { return p.positive; }),
+            itemStyle: {color: '#28a745'}
+        },
+        {
+            name: '消极',
+            type: 'bar',
+            data: productData.map(function(p) { return p.negative; }),
+            itemStyle: {color: '#dc3545'}
+        },
+        {
+            name: '中性',
+            type: 'bar',
+            data: productData.map(function(p) { return p.neutral; }),
+            itemStyle: {color: '#ffc107'}
+        }
+    ]
+});
+
+// 窗口大小变化时重新调整图表
+window.addEventListener('resize', function() {
+    sentimentPieChart.resize();
+    sentimentBarChart.resize();
+    keywordChart.resize();
+    productCompareChart.resize();
+});
+</script>
+{% endblock %}

@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+
+{% block title %}数据预览 - Sentix{% endblock %}
+
+{% block content %}
+<div class="card shadow-sm">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <strong>评论数据预览</strong>
+        <span class="text-muted">共 {{ comments.total }} 条评论</span>
+    </div>
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th>ID</th>
+                        <th>商品</th>
+                        <th>评论内容</th>
+                        <th>评分</th>
+                        <th>时间</th>
+                        <th>情感</th>
+                        <th>得分</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for comment in comments.items %}
+                    <tr>
+                        <td>{{ comment.id }}</td>
+                        <td>
+                            {% if comment.product %}
+                            {{ comment.product.product_name[:20] }}...
+                            {% else %}
+                            {{ comment.product_id }}
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span title="{{ comment.content }}">
+                            {{ comment.content[:50] }}{% if comment.content|length > 50 %}...{% endif %}
+                            </span>
+                        </td>
+                        <td>
+                            {% if comment.rating %}
+                            <span class="badge bg-warning">{{ comment.rating }}星</span>
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if comment.comment_time %}
+                            {{ comment.comment_time.strftime('%Y-%m-%d') }}
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if comment.sentiment_label == 'positive' %}
+                            <span class="badge bg-success">积极</span>
+                            {% elif comment.sentiment_label == 'negative' %}
+                            <span class="badge bg-danger">消极</span>
+                            {% elif comment.sentiment_label == 'neutral' %}
+                            <span class="badge bg-secondary">中性</span>
+                            {% else %}
+                            <span class="badge bg-light text-dark">未分析</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if comment.sentiment_score %}
+                            {{ comment.sentiment_score }}
+                            {% else %}
+                            -
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 分页 -->
+        {% if comments.pages > 1 %}
+        <nav class="mt-4">
+            <ul class="pagination justify-content-center">
+                {% if comments.has_prev %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('preview', page=comments.prev_num) }}">上一页</a>
+                </li>
+                {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link">上一页</span>
+                </li>
+                {% endif %}
+
+                {% for page in comments.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                    {% if page %}
+                        {% if page == comments.page %}
+                        <li class="page-item active">
+                            <span class="page-link">{{ page }}</span>
+                        </li>
+                        {% else %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('preview', page=page) }}">{{ page }}</a>
+                        </li>
+                        {% endif %}
+                    {% else %}
+                        <li class="page-item disabled">
+                            <span class="page-link">...</span>
+                        </li>
+                    {% endif %}
+                {% endfor %}
+
+                {% if comments.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('preview', page=comments.next_num) }}">下一页</a>
+                </li>
+                {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link">下一页</span>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

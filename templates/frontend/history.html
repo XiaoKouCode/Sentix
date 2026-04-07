@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block title %}历史记录 - Sentix{% endblock %}
+
+{% block content %}
+<div class="card shadow-sm">
+    <div class="card-header">
+        <strong>我的分析历史记录</strong>
+    </div>
+    <div class="card-body">
+        {% if logs.items %}
+        <div class="table-responsive">
+            <table class="table table-hover">
+                <thead class="table-light">
+                    <tr>
+                        <th>分析时间</th>
+                        <th>评论数量</th>
+                        <th>积极</th>
+                        <th>消极</th>
+                        <th>中性</th>
+                        <th>平均得分</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in logs.items %}
+                    <tr>
+                        <td>{{ log.analysis_time.strftime('%Y-%m-%d %H:%M:%S') }}</td>
+                        <td>{{ log.total_comments }}</td>
+                        <td>
+                            <span class="badge bg-success">{{ log.positive_count }}</span>
+                        </td>
+                        <td>
+                            <span class="badge bg-danger">{{ log.negative_count }}</span>
+                        </td>
+                        <td>
+                            <span class="badge bg-secondary">{{ log.neutral_count }}</span>
+                        </td>
+                        <td>{{ log.avg_score }}</td>
+                        <td>
+                            <a href="{{ url_for('visualization', log_id=log.id) }}" class="btn btn-sm btn-outline-primary">
+                                查看详情
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- 分页 -->
+        {% if logs.pages > 1 %}
+        <nav class="mt-4">
+            <ul class="pagination justify-content-center">
+                {% if logs.has_prev %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('history', page=logs.prev_num) }}">上一页</a>
+                </li>
+                {% endif %}
+
+                {% for page in logs.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+                    {% if page %}
+                        {% if page == logs.page %}
+                        <li class="page-item active">
+                            <span class="page-link">{{ page }}</span>
+                        </li>
+                        {% else %}
+                        <li class="page-item">
+                            <a class="page-link" href="{{ url_for('history', page=page) }}">{{ page }}</a>
+                        </li>
+                        {% endif %}
+                    {% else %}
+                        <li class="page-item disabled">
+                            <span class="page-link">...</span>
+                        </li>
+                    {% endif %}
+                {% endfor %}
+
+                {% if logs.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('history', page=logs.next_num) }}">下一页</a>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+
+        {% else %}
+        <p class="text-muted text-center py-4">暂无分析记录，请先进行情感分析</p>
+        <div class="text-center">
+            <a href="{{ url_for('analysis') }}" class="btn btn-primary">开始分析</a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
