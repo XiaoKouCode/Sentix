@@ -23,6 +23,7 @@ from config import Config
 from models import db, User, Product, Comment, AnalysisLog
 from utils.sentiment import analyze_sentiment, batch_analyze, get_sentiment_statistics, extract_keywords, clean_text
 from utils.data_processor import load_data, clean_data, standardize_columns, preview_data, allowed_file, generate_sample_data
+from utils.ml_model import classifier, SentimentClassifier
 
 
 app = Flask(__name__)
@@ -227,6 +228,9 @@ def preview():
 def analysis():
     """情感分析"""
     if request.method == 'POST':
+        # 获取分析方法选择
+        method = request.form.get('method', 'snownlp')  # snownlp 或 ml
+
         # 获取待分析的评论
         comment_ids = request.form.getlist('comment_ids')
 
@@ -244,7 +248,28 @@ def analysis():
 
         # 执行批量分析
         texts = [c.content for c in comments]
-        results = batch_analyze(texts)
+
+        if method == 'ml':
+            # 使用机器学习模型（朴素贝叶斯）
+            # 尝试加载模型，如果没有则先训练
+            if not classifier.load_model():
+                flash('机器学习模型未训练，正在自动训练...', 'info')
+                # 使用部分数据训练模型
+                train_comments = Comment.query.filter(
+                    Comment.rating.isnot(None),
+                    Comment.content.isnot(None)
+                ).limit(5000).all()
+                if train_comments:
+                    train_df = pd.DataFrame([{
+                        'content': c.content,
+                        'rating': c.rating
+                    } for c in train_comments])
+                    classifier.train(train_df)
+
+            results = classifier.batch_predict(texts)
+        else:
+            # 使用SnowNLP
+            results = batch_analyze(texts)
 
         # 更新评论的情感标签
         for comment, (label, score) in zip(comments, results):
@@ -266,12 +291,16 @@ def analysis():
         db.session.add(log)
         db.session.commit()
 
-        flash(f'分析完成，共处理 {len(comments)} 条评论', 'success')
+        flash(f'分析完成，共处理 {len(comments)} 条评论 (使用{method == "ml" and "朴素贝叶斯模型" or "SnowNLP"})', 'success')
         return redirect(url_for('visualization', log_id=log.id))
 
     # GET请求显示分析页面
     comments = Comment.query.filter(Comment.sentiment_label.isnot(None)).limit(100).all()
-    return render_template('frontend/analysis.html', comments=comments)
+
+    # 检查ML模型状态
+    ml_model_ready = classifier.load_model()
+
+    return render_template('frontend/analysis.html', comments=comments, ml_model_ready=ml_model_ready)
 
 
 @app.route('/visualization')
@@ -304,25 +333,92 @@ def visualization():
     texts = [c.content for c in comments]
     keywords = extract_keywords(texts, top_n=30)
 
-    # 商品对比数据
-    products = Product.query.all()
+    # 商品对比数据 - 只获取有已分析评论的商品
+    # 使用子查询获取有评论的商品ID
+    analyzed_product_ids = db.session.query(Comment.product_id).filter(
+        Comment.sentiment_label.isnot(None)
+    ).distinct().limit(20).all()
+    analyzed_product_ids = [p[0] for p in analyzed_product_ids]
+
     product_sentiment = []
-    for product in products:
-        pos = Comment.query.filter_by(product_id=product.product_id, sentiment_label='positive').count()
-        neg = Comment.query.filter_by(product_id=product.product_id, sentiment_label='negative').count()
-        neu = Comment.query.filter_by(product_id=product.product_id, sentiment_label='neutral').count()
-        product_sentiment.append({
-            'name': product.product_name,
-            'positive': pos,
-            'negative': neg,
-            'neutral': neu
-        })
+    for pid in analyzed_product_ids:
+        product = Product.query.filter_by(product_id=pid).first()
+        pos = Comment.query.filter_by(product_id=pid, sentiment_label='positive').count()
+        neg = Comment.query.filter_by(product_id=pid, sentiment_label='negative').count()
+        neu = Comment.query.filter_by(product_id=pid, sentiment_label='neutral').count()
+        if pos + neg + neu > 0:
+            product_sentiment.append({
+                'name': product.product_name[:30] if product else pid,
+                'positive': pos,
+                'negative': neg,
+                'neutral': neu
+            })
 
     return render_template('frontend/visualization.html',
                            log=log,
                            sentiment_data=sentiment_data,
                            keywords=keywords,
                            product_sentiment=product_sentiment)
+
+
+@app.route('/model/train', methods=['GET', 'POST'])
+@login_required
+@active_required
+def model_train():
+    """模型训练页面"""
+    if request.method == 'POST':
+        # 获取训练参数
+        sample_size = request.form.get('sample_size', 10000, type=int)
+
+        # 获取有评分的训练数据
+        train_comments = Comment.query.filter(
+            Comment.rating.isnot(None),
+            Comment.content.isnot(None)
+        ).limit(sample_size).all()
+
+        if not train_comments:
+            flash('没有可用的训练数据（需要有评分的评论）', 'danger')
+            return redirect(url_for('model_train'))
+
+        # 构建训练数据
+        train_df = pd.DataFrame([{
+            'content': c.content,
+            'rating': c.rating
+        } for c in train_comments])
+
+        # 训练模型
+        results = classifier.train(train_df)
+
+        flash(f'模型训练完成！准确率: {results["accuracy"]}, F1值: {results["f1_score"]}', 'success')
+        return render_template('frontend/model_result.html', results=results, sample_size=len(train_df))
+
+    # GET请求显示训练页面
+    # 统计可训练数据量
+    train_count = Comment.query.filter(
+        Comment.rating.isnot(None),
+        Comment.content.isnot(None)
+    ).count()
+
+    # 检查模型状态
+    model_ready = classifier.load_model()
+
+    return render_template('frontend/model_train.html', train_count=train_count, model_ready=model_ready)
+
+
+@app.route('/model/evaluate')
+@login_required
+@active_required
+def model_evaluate():
+    """模型评估页面"""
+    # 尝试加载模型
+    if not classifier.load_model():
+        flash('请先训练模型', 'warning')
+        return redirect(url_for('model_train'))
+
+    # 获取特征词
+    feature_words = classifier.get_feature_words(top_n=20)
+
+    return render_template('frontend/model_evaluate.html', feature_words=feature_words)
 
 
 @app.route('/history')
@@ -679,15 +775,26 @@ def api_update_user(id):
 @active_required
 def generate_wordcloud():
     """生成词云图"""
-    comments = Comment.query.filter(Comment.sentiment_label.isnot(None)).all()
+    comments = Comment.query.filter(Comment.sentiment_label.isnot(None)).limit(1000).all()
     texts = [c.content for c in comments]
+
+    if not texts:
+        # 如果没有已分析的评论，返回提示图片
+        plt.figure(figsize=(10, 5))
+        plt.text(0.5, 0.5, '请先进行情感分析', fontsize=20, ha='center', va='center')
+        plt.axis('off')
+        img = io.BytesIO()
+        plt.savefig(img, format='png', bbox_inches='tight')
+        img.seek(0)
+        plt.close()
+        return send_file(img, mimetype='image/png')
 
     # 合并所有文本
     all_text = ' '.join(texts)
 
     # 生成词云
     wordcloud = WordCloud(
-        font_path='/System/Library/Fonts/PingFang.ttc',
+        font_path='/System/Library/Fonts/STHeiti Light.ttc',
         width=800,
         height=400,
         background_color='white',
@@ -798,4 +905,4 @@ if __name__ == '__main__':
     print('3. 访问 http://localhost:5000 登录系统')
     print('\n启动服务...')
 
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=True, host='0.0.0.0', port=5001)

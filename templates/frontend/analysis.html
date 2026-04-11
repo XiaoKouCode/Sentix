@@ -11,10 +11,54 @@
             </div>
             <div class="card-body">
                 <p class="text-muted mb-4">
-                    点击下方按钮，系统将对评论进行情感分析，输出情感标签（积极/消极/中性）和情感得分（0-1）。
+                    选择分析方法对评论进行情感分析，输出情感标签（积极/消极/中性）和情感得分。
                 </p>
 
                 <form method="POST">
+                    <!-- 分析方法选择 -->
+                    <div class="mb-4">
+                        <h6>选择分析方法</h6>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="card border-primary mb-3">
+                                    <div class="card-body">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="method" value="snownlp" id="snownlp" checked>
+                                            <label class="form-check-label" for="snownlp">
+                                                <strong>SnowNLP情感分析</strong>
+                                            </label>
+                                            <p class="text-muted small mt-2">
+                                                基于情感词典的方法，适合快速分析
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="card {% if ml_model_ready %}border-success{% else %}border-warning{% endif %} mb-3">
+                                    <div class="card-body">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="radio" name="method" value="ml" id="ml"
+                                                   {% if not ml_model_ready %}disabled{% endif %}>
+                                            <label class="form-check-label" for="ml">
+                                                <strong>朴素贝叶斯模型 (TF-IDF)</strong>
+                                            </label>
+                                            <p class="text-muted small mt-2">
+                                                {% if ml_model_ready %}
+                                                已训练完成，可使用
+                                                {% else %}
+                                                <a href="{{ url_for('model_train') }}">请先训练模型</a>
+                                                {% endif %}
+                                            </p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <hr>
+
                     <div class="mb-4">
                         <h6>待分析评论</h6>
                         {% if comments %}
@@ -26,11 +70,20 @@
 
                     <div class="d-grid gap-2">
                         <button type="submit" class="btn btn-primary btn-lg">
-                            开始分析
+                            <i class="fas fa-play"></i> 开始分析
                         </button>
-                        <a href="{{ url_for('import_data') }}" class="btn btn-outline-secondary">
-                            先导入数据
-                        </a>
+                        <div class="row">
+                            <div class="col-md-6">
+                                <a href="{{ url_for('model_train') }}" class="btn btn-outline-info w-100">
+                                    <i class="fas fa-cogs"></i> 训练ML模型
+                                </a>
+                            </div>
+                            <div class="col-md-6">
+                                <a href="{{ url_for('import_data') }}" class="btn btn-outline-secondary w-100">
+                                    <i class="fas fa-upload"></i> 导入数据
+                                </a>
+                            </div>
+                        </div>
                     </div>
                 </form>
 
@@ -38,23 +91,23 @@
 
                 <div class="row">
                     <div class="col-md-6">
-                        <h6>分析原理</h6>
+                        <h6>SnowNLP原理</h6>
                         <ul class="text-muted">
-                            <li>使用 SnowNLP 进行中文情感分析</li>
-                            <li>基于情感词典和机器学习模型</li>
-                            <li>得分 > 0.6 为积极情感</li>
-                            <li>得分 < 0.4 为消极情感</li>
-                            <li>得分 0.4-0.6 为中性情感</li>
+                            <li>基于情感词典的方法</li>
+                            <li>内置商品评论情感模型</li>
+                            <li>得分 > 0.6 为积极</li>
+                            <li>得分 < 0.4 为消极</li>
+                            <li>适合快速分析</li>
                         </ul>
                     </div>
                     <div class="col-md-6">
-                        <h6>处理步骤</h6>
+                        <h6>朴素贝叶斯原理</h6>
                         <ul class="text-muted">
-                            <li>1. 文本清洗（去除特殊字符）</li>
-                            <li>2. jieba 中文分词</li>
-                            <li>3. 去除停用词</li>
-                            <li>4. 情感得分计算</li>
-                            <li>5. 情感标签分类</li>
+                            <li>TF-IDF特征提取</li>
+                            <li>基于评分数据训练</li>
+                            <li>准确率、F1值可评估</li>
+                            <li>特征词可解释性强</li>
+                            <li>适合大规模分析</li>
                         </ul>
                     </div>
                 </div>
@@ -70,21 +123,35 @@
             <div class="card-body">
                 <div class="mb-3">
                     <span class="badge bg-success">积极</span>
-                    <small class="text-muted ms-2">得分 ≥ 0.6，正面评价</small>
+                    <small class="text-muted ms-2">正面评价</small>
                 </div>
                 <div class="mb-3">
                     <span class="badge bg-danger">消极</span>
-                    <small class="text-muted ms-2">得分 ≤ 0.4，负面评价</small>
+                    <small class="text-muted ms-2">负面评价</small>
                 </div>
                 <div class="mb-3">
                     <span class="badge bg-secondary">中性</span>
-                    <small class="text-muted ms-2">得分 0.4-0.6，无明显倾向</small>
+                    <small class="text-muted ms-2">无明显倾向</small>
                 </div>
 
                 <hr>
 
-                <p class="text-muted">
-                    系统支持批量处理，单次可分析超过 10000 条评论。平均处理速度约 100 条/秒。
+                <h6>两种方法对比</h6>
+                <table class="table table-sm small">
+                    <tr>
+                        <td>SnowNLP</td>
+                        <td>无需训练，直接使用</td>
+                    </tr>
+                    <tr>
+                        <td>朴素贝叶斯</td>
+                        <td>需训练，可评估性能</td>
+                    </tr>
+                </table>
+
+                <hr>
+
+                <p class="text-muted small">
+                    建议先训练朴素贝叶斯模型，然后使用ML模型进行分析，可以获得更好的分类效果和可解释性。
                 </p>
             </div>
         </div>
